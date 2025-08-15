@@ -185,19 +185,21 @@ def quick_shallow_dt_search(X_train: pd.DataFrame, y_train: pd.Series,
         X_train, y_train, test_size=0.25, stratify=y_train, random_state=RANDOM_STATE
     )
 
+    # More conservative parameters for realistic lending decisions
     candidates = []
     for crit in ["gini", "entropy"]:
-        for depth in [3, 4, 5, 6]:
-            for min_leaf in [1, 2]:
-                candidates.append(dict(
-                    criterion=crit,
-                    max_depth=depth,
-                    min_samples_split=5,
-                    min_samples_leaf=min_leaf,
-                    max_features="sqrt",
-                    class_weight="balanced",
-                    ccp_alpha=0.0,
-                ))
+        for depth in [3, 4, 5]:  # Shallow trees to prevent overfitting
+            for min_leaf in [3, 4, 5]:  # Higher min_leaf for more conservative splits
+                for min_split in [10, 15, 20]:  # Higher min_split for stability
+                    candidates.append(dict(
+                        criterion=crit,
+                        max_depth=depth,
+                        min_samples_split=min_split,
+                        min_samples_leaf=min_leaf,
+                        max_features='sqrt',
+                        class_weight='balanced',
+                        ccp_alpha=0.001,  # Pruning to prevent overfitting
+                    ))
 
     best_model = None
     best_val_acc = -1.0
