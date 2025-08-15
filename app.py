@@ -35,54 +35,81 @@ st.title("🏦 Loan Approval Predictor")
 st.write("#### Enter applicant details to predict loan approval:")
 
 # Load model and scaler
-model = joblib.load('loan_approval_lr.pkl')
+lr_model = joblib.load('loan_approval_lr.pkl')
+dt_model = joblib.load('loan_approval_dt.pkl')
 scaler = joblib.load('loan_approval_scaler.pkl')
+
 
 # Input fields in columns
 col1, col2 = st.columns(2)
 with col1:
-    income = st.number_input("Applicant Income", min_value=0, step=1, help="Monthly income in your local currency")
-    credit_score = st.number_input("Credit Score", min_value=0, max_value=900, step=1, help="Credit score (0-900)")
+    income = st.number_input("Applicant Income", min_value=1000, max_value=1000000, value=50000, step=1000, help="Monthly income in your local currency")
+    credit_score = st.number_input("Credit Score", min_value=300, max_value=900, value=650, step=10, help="Credit score (300-900)")
 with col2:
-    loan_amount = st.number_input("Loan Amount", min_value=0, step=1, help="Requested loan amount")
+    loan_amount = st.number_input("Loan Amount", min_value=1000, max_value=10000000, value=200000, step=1000, help="Requested loan amount")
     education = st.selectbox("Education", ["Graduate", "Not Graduate"])
     self_employed = st.selectbox("Self Employed", ["No", "Yes"])
+
+# Add validation
+if loan_amount > income * 50:
+    st.warning("⚠️ Warning: Loan amount is very high compared to income. This may affect approval chances.")
+    
+if credit_score < 500:
+    st.warning("⚠️ Warning: Low credit score may reduce approval chances.")
 
 # Encode categorical variables
 education_val = 1 if education == "Graduate" else 0
 self_employed_val = 1 if self_employed == "Yes" else 0
 
 # Predict button
+# Predict button
 if st.button("🔮 Predict"):
     try:
-        input_data = np.array([[income, loan_amount, credit_score, education_val, self_employed_val]])
+        # Compute IncomePerLoan feature
+        income_per_loan = income / (loan_amount + 1)
+
+        # Prepare input array with all 6 features
+        input_data = np.array([[income, loan_amount, credit_score, education_val, self_employed_val, income_per_loan]])
         input_scaled = scaler.transform(input_data)
-        prediction = model.predict(input_scaled)[0]
-        proba = model.predict_proba(input_scaled)[0][1]
 
-        st.markdown("### Prediction Result")
-        if prediction == 1:
-            st.success("🎉 Loan Approved! Congratulations! ✅")
-            st.balloons()
-            st.info("Tip: Maintain your credit score for future loans.")
+        # Logistic Regression prediction
+        lr_pred = lr_model.predict(input_scaled)[0]
+        lr_proba = lr_model.predict_proba(input_scaled)[0][1]
+
+        # Decision Tree prediction
+        dt_pred = dt_model.predict(input_scaled)[0]
+        dt_proba = dt_model.predict_proba(input_scaled)[0][1]
+
+        st.markdown("### Prediction Results")
+
+        # Logistic Regression result
+        st.subheader("Logistic Regression")
+        if lr_pred == 1:
+            st.success(f"🎉 Loan Approved! Probability: {lr_proba:.2%}")
         else:
-            st.error("❌ Loan Not Approved. Please check your details or contact support.")
-            if credit_score < 600:
-                st.warning("Your credit score is below average. Improving it may help.")
-            if income < 3000:
-                st.warning("A higher income can increase approval chances.")
-            st.markdown("**Next Steps:** [Contact Support](mailto:loan.support@yourdomain.com?subject=Loan%20Approval%20Help&body=I%20need%20assistance%20with%20my%20loan%20application.) or [Learn how to improve your credit score](https://www.investopedia.com/how-to-improve-your-credit-score-4590099)")
+            st.error(f"❌ Loan Not Approved. Probability: {lr_proba:.2%}")
 
-        st.info(f"**Approval Probability:** {proba:.2%}")
+        # Decision Tree result
+        st.subheader("Decision Tree")
+        if dt_pred == 1:
+            st.success(f"🎉 Loan Approved! Probability: {dt_proba:.2%}")
+        else:
+            st.error(f"❌ Loan Not Approved. Probability: {dt_proba:.2%}")
 
+        # Show input details
         with st.expander("See your input details"):
             st.write(f"**Income:** {income}")
             st.write(f"**Loan Amount:** {loan_amount}")
             st.write(f"**Credit Score:** {credit_score}")
             st.write(f"**Education:** {education}")
             st.write(f"**Self Employed:** {self_employed}")
+            st.write(f"**Income per Loan:** {income_per_loan:.2f}")
+
     except Exception as e:
         st.error(f"An error occurred: {e}")
+
+
+
 
 # Footer
 st.markdown("---")
