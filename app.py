@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import joblib
 import pandas as pd
+import os
 
 # Custom page config
 st.set_page_config(page_title="Loan Approval Predictor", page_icon=":money_with_wings:", layout="centered")
@@ -27,7 +28,7 @@ st.markdown("""
 st.sidebar.image("https://img.icons8.com/color/96/000000/bank.png", width=80)
 st.sidebar.title("About")
 st.sidebar.info(
-    "This app predicts loan approval using a machine learning model. "
+    "This app predicts loan approval using machine learning models. "
     "Enter applicant details and click Predict to see the result."
 )
 
@@ -35,11 +36,32 @@ st.sidebar.info(
 st.title("🏦 Loan Approval Predictor")
 st.write("#### Enter applicant details to predict loan approval:")
 
-# Load model and scaler
-lr_model = joblib.load('loan_approval_lr.pkl')
-dt_model = joblib.load('loan_approval_dt.pkl')
-scaler = joblib.load('loan_approval_scaler.pkl')
-
+# Load models with better error handling
+models_loaded = False
+try:
+    # Check if model files exist
+    model_files = ['loan_approval_lr_cloud.pkl', 'loan_approval_dt_cloud.pkl', 'loan_approval_scaler_cloud.pkl', 'education_encoder.pkl', 'selfemployed_encoder.pkl']
+    missing_files = [f for f in model_files if not os.path.exists(f)]
+    
+    if missing_files:
+        st.error(f"❌ Missing model files: {', '.join(missing_files)}")
+        st.info("Please run train_models_cloud.py first to create compatible models.")
+        st.stop()
+    
+    # Load models
+    lr_model = joblib.load('loan_approval_lr_cloud.pkl')
+    dt_model = joblib.load('loan_approval_dt_cloud.pkl')
+    scaler = joblib.load('loan_approval_scaler_cloud.pkl')
+    edu_encoder = joblib.load('education_encoder.pkl')
+    self_encoder = joblib.load('selfemployed_encoder.pkl')
+    
+    models_loaded = True
+    st.success("✅ Models loaded successfully!")
+    
+except Exception as e:
+    st.error(f"❌ Error loading models: {str(e)}")
+    st.info("This might be due to version compatibility or missing files.")
+    st.stop()
 
 # Input fields in columns
 col1, col2 = st.columns(2)
@@ -129,29 +151,28 @@ if st.button("🔮 Predict"):
         else:
             st.success("✅ Passes business logic checks")
 
-        # Prepare input DataFrame with proper column names for the models
-        input_df = pd.DataFrame({
-            'ApplicantIncome': [income],
-            'LoanAmount': [loan_amount], 
-            'CreditScore': [credit_score],
-            'Education': [education],  # Use original string values
-            'SelfEmployed': [self_employed],  # Use original string values
-            'IncomePerLoan': [income_per_loan]
-        })
+        # Prepare input array with encoded features for the cloud models
+        education_encoded = edu_encoder.transform([education])[0]
+        selfemployed_encoded = self_encoder.transform([self_employed])[0]
         
-        # Try to use models directly with DataFrame
+        # Create input array for models
+        input_features = np.array([[income, loan_amount, credit_score, income_per_loan, education_encoded, selfemployed_encoded]])
+        
+        # Scale features for Logistic Regression
+        input_scaled = scaler.transform(input_features)
+        
+        # Get predictions
         try:
-            # Use models with DataFrame input (they have built-in preprocessing)
-            lr_pred = lr_model.predict(input_df)[0]
-            lr_proba = lr_model.predict_proba(input_df)[0][1]
+            # Logistic Regression (needs scaled features)
+            lr_pred = lr_model.predict(input_scaled)[0]
+            lr_proba = lr_model.predict_proba(input_scaled)[0][1]
             
-            dt_pred = dt_model.predict(input_df)[0]
-            dt_proba = dt_model.predict_proba(input_df)[0][1]
+            # Decision Tree (no scaling needed)
+            dt_pred = dt_model.predict(input_features)[0]
+            dt_proba = dt_model.predict_proba(input_features)[0][1]
             
         except Exception as e:
-            st.error(f"Model prediction failed: {e}")
-            st.write("Debug: Input DataFrame shape:", input_df.shape)
-            st.write("Debug: Input DataFrame columns:", input_df.columns.tolist())
+            st.error(f"Prediction failed: {e}")
             st.stop()
 
         st.markdown("### Prediction Results")
@@ -182,9 +203,6 @@ if st.button("🔮 Predict"):
     except Exception as e:
         st.error(f"An error occurred: {e}")
         st.write("Debug info:", str(e))
-
-
-
 
 # Footer
 st.markdown("---")
