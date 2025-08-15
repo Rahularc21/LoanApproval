@@ -11,28 +11,26 @@
 - Recall (class 1): 0.31
 - F1-score (class 1): 0.36
 
-**Decision Tree:**
-- Accuracy: 0.50
-- Precision (class 0): 0.50
-- Recall (class 0): 0.31
-- F1-score (class 0): 0.38
-- Precision (class 1): 0.50
-- Recall (class 1): 0.69
-- F1-score (class 1): 0.58
+**Decision Tree (shallow tuned):**
+- Accuracy: 0.62
+- Precision (class 0): 0.53
+- Recall (class 0): 0.71
+- F1-score (class 0): 0.61
+- Precision (class 1): 0.73
+- Recall (class 1): 0.55
+- F1-score (class 1): 0.63
 
 ## Comparison and Explanation
-- Both models performed similarly, with relatively low accuracy and F1-scores, indicating the dataset may be challenging for these models or may require more feature engineering or data.
-- Logistic Regression had slightly better recall for class 0, while Decision Tree had better recall and F1-score for class 1 and slightly higher overall accuracy.
-- Possible reasons for low performance:
-  - The dataset is small, which can limit model learning.
-  - There may be class imbalance or insufficient predictive features.
-  - Some features may not be strongly correlated with the target.
+- The shallow tuned Decision Tree outperformed Logistic Regression on test accuracy (0.62 vs 0.46) and balanced performance across classes.
+- The Decision Tree benefits from capturing non-linear relationships and simple thresholds that align with lending decision rules (e.g., splits on `CreditScore`, `LoanAmount`, or `IncomePerLoan`).
+- Logistic Regression underperforms likely due to linear decision boundaries and small dataset size.
+- Caveats:
+  - The dataset is small; results are sensitive to the specific train/test split.
+  - Performance may vary across splits; cross-validated averages are advisable for robustness.
 
 ## Conclusion
-- Neither model performed particularly well, but Logistic Regression and Decision Tree both provide a baseline for future improvements.
-- The Decision Tree performed slightly better in terms of overall accuracy and F1-score for the positive class (1).
-- Further steps could include collecting more data, engineering new features, or trying more advanced models (e.g., ensemble methods).
-- Improving data quality and exploring additional variables may help boost model performance.
+- The Decision Tree (tuned, shallow depth) is the better model on this dataset, achieving ~0.62 accuracy with reasonable precision/recall trade-offs for both classes.
+- Further steps could include collecting more data, engineering features (e.g., binning credit score, log-transforming skewed incomes), or trying ensembles (Random Forest/Gradient Boosting) if permitted by the assignment.
 
 **Recommendation:**
-- Use these results as a starting point and iterate on feature engineering and model selection for better results in future work. 
+- Report both models but emphasize the tuned Decision Tree as the preferred choice for this dataset due to higher accuracy and interpretable splits. 
